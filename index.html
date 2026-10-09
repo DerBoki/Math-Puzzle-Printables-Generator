@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iHgS8tMR9gAJvtXQdIHYHnDByHeSzqQ/h7dBMKI2QOE='; worker-src blob:; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sum Chain Puzzles · Offline</title>
+<!--
+MIT License
+
+Copyright (c) 2026 Marcel Boekhoff
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-->
+<style>:root{--ink:#1b1f24;--muted:#52606d;--line:#d5dae0;--accent:#245bcb;--bg:#edf1f5}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);background:var(--bg);font-family:"Segoe UI",Arial,sans-serif}
+.app{display:flex;min-height:100vh}
+.controls{width:350px;flex:none;background:#fff;border-right:1px solid var(--line);padding:18px;position:sticky;top:0;height:100vh;overflow:auto}
+h1{font-size:21px;margin:0 0 5px}.sub{margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.5}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 14px;padding:10px 12px 12px}
+legend{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:0 4px}
+label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;margin-top:10px}
+input[type=number],input[type=text],select{width:132px;padding:6px 7px;border:1px solid #aab4c0;border-radius:5px;font:inherit;background:#fff;color:inherit}
+.check{justify-content:flex-start;align-items:flex-start;line-height:1.4}.check input{margin-top:4px;flex:none}.risky{border-top:1px solid var(--line);padding-top:12px}
+button{font:inherit;border:1px solid #aab4c0;background:#fff;color:var(--ink);border-radius:6px;padding:8px 10px;cursor:pointer}
+button:disabled{opacity:.48;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #93b6ff;outline-offset:2px}
+.primary,.print{width:100%;font-weight:600;padding:11px}.primary{background:var(--accent);border-color:var(--accent);color:white}.print{margin-top:10px}
+.actions{display:flex;gap:8px;margin-top:8px}.actions button{font-size:12px;flex:1}
+.seedrow{display:flex;gap:6px;margin-top:6px}.seedrow input{flex:1;min-width:0}.seedrow button{font-size:12px;flex:none}
+.hint{font-size:12px;line-height:1.5;color:var(--muted);margin:9px 0 0}#msg{color:#a51111;font-size:13px;line-height:1.5}#status{font-size:13px;line-height:1.5}.warning{padding:9px;background:#fff3d7;border-left:3px solid #a56700;font-size:12px;line-height:1.5;color:#694000}
+.previewwrap{flex:1;padding:24px;min-width:0;overflow:auto}#preview{transform-origin:top left}.empty{padding:24px;color:var(--muted)}
+.page{background:white;color:#000;margin:0 auto 24px;padding:12mm;box-shadow:0 2px 12px #0002;position:relative;break-inside:avoid;content-visibility:auto;contain-intrinsic-size:auto 1100px}
+.page header{height:12mm;display:flex;align-items:center;justify-content:space-between;border-bottom:.4mm solid #000;gap:4mm}
+.title{font-size:5.5mm;font-weight:700}.meta{font-size:3mm;white-space:nowrap}.subtitle{height:7mm;font-size:3mm;display:flex;align-items:center;color:#444}
+.rules{height:27mm;display:flex;gap:4mm;align-items:center;font-size:3.2mm;line-height:1.45}.rules p{margin:0}.startbox{border:.5mm solid #000;min-width:21mm;padding:2mm;text-align:center;font-size:5mm;font-weight:700}.startbox small{display:block;font-size:2.7mm;font-weight:400}
+.grid{display:grid;gap:3mm;justify-content:center;margin:auto;width:max-content;max-width:100%}.block{border:.5mm solid #000;break-inside:avoid}.block-label{height:6mm;font-size:2.8mm;line-height:6mm;padding:0 1mm;border-bottom:.25mm solid #000;white-space:nowrap}.cells{display:grid}
+.cell{display:flex;align-items:center;justify-content:center;border:.15mm solid #979ba0;font-family:Consolas,"Courier New",monospace;font-variant-numeric:tabular-nums;line-height:1;min-width:0}
+.sol .cell.addend{font-weight:700;outline:.5mm solid #000;outline-offset:-.8mm}.sol .cell.result{font-weight:700;background:#000!important;color:#fff}
+.page footer{position:absolute;left:12mm;right:12mm;bottom:5mm;height:8mm;display:flex;align-items:flex-end;justify-content:space-between;gap:4mm;font-size:2.6mm;line-height:1.3}.footnote{min-width:0;overflow-wrap:anywhere}.end-result{white-space:nowrap;font-weight:700}.print-warning{color:#774500}
+#printGuard{display:none}[hidden]{display:none!important}
+@media(max-width:850px){.app{flex-direction:column}.controls{width:auto;height:auto;position:static;border-right:0}.previewwrap{padding:12px}}
+@media print{
+  body{background:#fff}.controls{display:none!important}.app{display:block}.previewwrap{padding:0;overflow:visible}#preview{zoom:1!important;transform:none!important}
+  .page{margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always;content-visibility:visible;contain:none}.page:last-child{break-after:auto;page-break-after:auto}
+  body:not([data-ready="true"]) .app{display:none!important}body:not([data-ready="true"]) #printGuard{display:block;margin:20mm;color:#000}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+<style id="pagesize"></style>
+</head>
+<body data-ready="false">
+<div class="app">
+<aside class="controls">
+  <h1>Sum Chain Puzzles</h1>
+  <p class="sub">Offline · Version 2.0<br>Find one sum in each numbered block.</p>
+  <fieldset>
+    <legend>Puzzle</legend>
+    <label>Blocks per side <input type="number" id="blocks" min="2" max="6" step="1" value="3"></label>
+    <label>Numbers per block side <input type="number" id="size" min="2" max="6" step="1" value="3"></label>
+    <label>Smallest number <input type="number" id="min" min="-1000" max="1000" step="1" value="1"></label>
+    <label>Largest number <input type="number" id="max" min="-1000" max="1000" step="1" value="30"></label>
+    <label>Number of puzzles <input type="number" id="count" min="1" max="50" step="1" value="1"></label>
+    <label for="seed">Seed (up to 64 characters)</label>
+    <div class="seedrow"><input type="text" id="seed" maxlength="64" autocomplete="off" spellcheck="false"><button type="button" id="reseed" title="New random seed">New seed</button></div>
+    <p class="hint">Three different cells make a sum. Every number, including zero, appears at most once per block. Same seed + puzzle settings + app version = same puzzle.</p>
+    <label class="check"><input type="checkbox" id="chain" checked>Chain blocks in numbered order</label>
+  </fieldset>
+  <fieldset>
+    <legend>Paper &amp; answers</legend>
+    <label>Format <select id="paper"><option value="a4">A4</option><option value="letter">US Letter</option><option value="a3">A3</option><option value="a2">A2</option><option value="tabloid">US Tabloid</option><option value="custom">Custom (mm)</option></select></label>
+    <div id="customPaper" hidden><label>Paper side 1 (mm) <input id="width" type="number" min="200" max="1000" step="0.1" value="420"></label><label>Paper side 2 (mm) <input id="height" type="number" min="200" max="1000" step="0.1" value="594"></label></div>
+    <label>Orientation <select id="orient"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
+    <label>Colours <select id="theme"><option value="none">Black &amp; white</option><option value="checker">Blue checkerboard</option><option value="pastel">Pastel blocks</option></select></label>
+    <label class="check"><input type="checkbox" id="solutions" checked>Add solution pages</label>
+    <label class="check"><input type="checkbox" id="finalResult">Show final result on sheets</label>
+    <p class="hint">Solution pages always reveal the block sums. The checkbox controls the extra “Final result” label.</p>
+    <label class="check risky"><input type="checkbox" id="oversize">Force one sheet per puzzle. I accept tiny text and possible visual defects.</label>
+    <p class="hint">Default: split large grids across pages to keep numbers at least 10 pt. For one large sheet, first choose A3, A2 or custom paper.</p>
+    <p id="layoutInfo" class="hint"></p>
+    <p id="warning" class="warning" role="status" hidden></p>
+  </fieldset>
+  <button type="button" class="primary" id="generate">Generate puzzles</button>
+  <div class="actions"><button type="button" id="cancel" disabled>Cancel</button><button type="button" id="restore" disabled>Restore last valid settings</button></div>
+  <button type="button" class="print" id="print" disabled>Print / Save as PDF</button>
+  <p id="status" role="status" aria-live="polite">Ready to generate.</p>
+  <p id="msg" role="alert"></p>
+  <p class="hint">Print at 100% / actual size on the selected paper. Set margins to None and turn browser headers/footers off. Enable background graphics for colours. Check the print preview before printing.</p>
+  <p class="hint">No internet, account or upload needed. Reloading clears this session. Choose Print / Save as PDF to keep your sheets.</p>
+</aside>
+<main class="previewwrap"><div id="preview" aria-label="Puzzle preview"><p class="empty">Generate a puzzle to see your printable sheets here.</p></div></main>
+</div>
+<p id="printGuard">Nothing ready to print. Generate valid puzzles using the current settings first.</p>
+<script type="text/plain" id="workerSource">// All cells in a block are distinct. A solution uses THREE different cells.
+function hashSeed(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const randInt = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
+function shuffle(rng, values) {
+  for (let i = values.length - 1; i > 0; i--) { const j = randInt(rng, 0, i); [values[i], values[j]] = [values[j], values[i]]; }
+  return values;
+}
+function validateGenerator(o) {
+  for (const [key, lo, hi] of [['blocks',2,6],['size',2,6],['min',-1000,1000],['max',-1000,1000]]) {
+    if (!Number.isInteger(o[key]) || o[key] < lo || o[key] > hi) throw new Error(`Invalid ${key}: expected an integer from ${lo} to ${hi}.`);
+  }
+  if (typeof o.chain !== 'boolean') throw new Error('Invalid chain option.');
+  if (o.min > o.max) throw new Error('Smallest number must not exceed largest number.');
+  if (o.max - o.min + 1 < o.size ** 2) throw new Error(`This block needs at least ${o.size ** 2} different numbers. Widen the range or reduce the block size.`);
+  // Zero may be a filler or result, but cannot be an addend with distinct cells/values.
+  if (o.min >= 0) {
+    const step = Math.max(1, o.min);
+    if (2 * step + 1 > o.max) throw new Error('This range contains no sum using three different values.');
+    if (o.chain && (o.blocks ** 2 + 1) * step > o.max) throw new Error('The positive range is too short for this chain. Widen it, reduce the blocks, or turn chaining off.');
+  }
+  if (o.max <= 0) {
+    const step = Math.min(-1, o.max);
+    if (2 * step - 1 < o.min) throw new Error('This range contains no sum using three different values.');
+    if (o.chain && (o.blocks ** 2 + 1) * step < o.min) throw new Error('The negative range is too short for this chain. Widen it, reduce the blocks, or turn chaining off.');
+  }
+}
+function buildBlock(rng, nCells, min, max, s, x, c) {
+  if (s + x !== c || new Set([s,x,c]).size !== 3) return null;
+  const order = shuffle(rng, Array.from({length:nCells}, (_, i) => i));
+  const cells = new Array(nCells), placed = [s,x,c], set = new Set(placed);
+  [cells[order[0]],cells[order[1]],cells[order[2]]] = placed;
+  for (let k = 3; k < nCells; k++) {
+    let v = null;
+    for (let t = 0; t < 300 && v === null; t++) {
+      const cand = randInt(rng, min, max);
+      if (set.has(cand)) continue; // Includes at most one zero.
+      let ok = true;
+      for (const a of placed) {
+        const b = cand - a;
+        if (b !== a && set.has(b)) { ok = false; break; }
+        const sum = a + cand;
+        // 0 + a = a must NOT reuse the addend cell as the result cell.
+        if (sum !== a && sum !== cand && set.has(sum)) { ok = false; break; }
+      }
+      if (ok) v = cand;
+    }
+    if (v === null) return null;
+    cells[order[k]] = v; placed.push(v); set.add(v);
+  }
+  return {cells,tri:{s:order[0],x:order[1],c:order[2]},s,x,c};
+}
+function tryPuzzle(rng, o) {
+  const n = o.blocks ** 2, nCells = o.size ** 2, {min,max} = o;
+  const positive = min >= 0, negative = max <= 0;
+  const stepLo = Math.max(1,min), stepHi = Math.min(-1,max);
+  const randomStart = () => { let s; do {s = randInt(rng,min,max);} while (s === 0); return s; };
+  let s = o.chain && positive ? randInt(rng, stepLo, stepLo + Math.floor((max-stepLo)/(2*(n+1))))
+    : o.chain && negative ? randInt(rng, stepHi - Math.floor((stepHi-min)/(2*(n+1))), stepHi) : randomStart();
+  const blocks = [];
+  for (let k = 0; k < n; k++) {
+    if (!o.chain && k > 0) s = randomStart();
+    const remaining = n-k;
+    let capHi = max, capLo = min;
+    if (o.chain && positive) capHi = Math.min(max-(remaining-1)*stepLo, s+Math.max(stepLo,Math.floor((max-s)/remaining)));
+    if (o.chain && negative) capLo = Math.max(min-(remaining-1)*stepHi, s+Math.min(stepHi,Math.ceil((min-s)/remaining)));
+    const xs = [];
+    for (let x = Math.max(min,min-s); x <= Math.min(max,max-s); x++) {
+      const c = s+x;
+      if (x === 0 || x === s || c < capLo || c > capHi) continue;
+      // A zero result is valid, but cannot start another chained block.
+      if (c === 0 && o.chain && k < n-1) continue;
+      xs.push(x);
+    }
+    shuffle(rng,xs);
+    let block = null;
+    for (let i = 0; i < Math.min(xs.length,25) && !block; i++) block = buildBlock(rng,nCells,min,max,s,xs[i],s+xs[i]);
+    if (!block) return null;
+    blocks.push(block); s = block.c;
+  }
+  return {blocks,start:blocks[0].s,end:blocks[n-1].c};
+}
+function generatePuzzle(rng, o) {
+  validateGenerator(o);
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const p = tryPuzzle(rng,o);
+    if (p) return p;
+  }
+  throw new Error('No puzzle found within the search limit. Widen the number range, use smaller blocks, or turn chaining off.');
+}
+
+const VERSION = '2.0.0';
+const PAPER = {letter:[215.9,279.4],a4:[210,297],a3:[297,420],a2:[420,594],tabloid:[279.4,431.8]};
+const MARGIN = 12;
+const MIN_FONT_PT = 10;
+const MAX_PAGES = 200;
+const DEFAULTS = {blocks:3,size:3,min:1,max:30,count:1,seed:'',paper:'a4',orient:'portrait',theme:'none',chain:true,solutions:true,finalResult:false,oversize:false,width:420,height:594};
+const fmt = n => n < 0 ? '−'+(-n) : String(n);
+function parseOptions(raw) {
+  const o = {};
+  for (const [key,lo,hi] of [['blocks',2,6],['size',2,6],['min',-1000,1000],['max',-1000,1000],['count',1,50]]) {
+    const text = String(raw[key]).trim(), value = Number(text);
+    if (!text || !Number.isInteger(value) || value < lo || value > hi) throw new Error(`${key}: enter a whole number from ${lo} to ${hi}.`);
+    o[key] = value;
+  }
+  if (o.min > o.max) throw new Error('Smallest number must not exceed largest number.');
+  for (const [key,values] of [['paper',[...Object.keys(PAPER),'custom']],['orient',['portrait','landscape']],['theme',['none','checker','pastel']]]) {
+    if (!values.includes(raw[key])) throw new Error(`Invalid ${key}.`);
+    o[key] = raw[key];
+  }
+  for (const key of ['chain','solutions','finalResult','oversize']) {
+    if (typeof raw[key] !== 'boolean') throw new Error(`Invalid ${key}.`);
+    o[key] = raw[key];
+  }
+  o.seed = String(raw.seed ?? '').trim() || '1';
+  if (o.seed.length > 64 || /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(o.seed)) throw new Error('Seed: use up to 64 printable characters, without control characters.');
+  for (const key of ['width','height']) {
+    const v = Number(raw[key]);
+    if (o.paper === 'custom' && (!String(raw[key]).trim() || !Number.isFinite(v) || v < 200 || v > 1000)) throw new Error('Custom paper sides must be between 200 and 1000 mm.');
+    o[key] = o.paper === 'custom' ? Math.round(v*10)/10 : DEFAULTS[key];
+  }
+  return o;
+}
+function paperDimensions(o) {
+  const sides = o.paper === 'custom' ? [o.width,o.height] : PAPER[o.paper];
+  const sorted = [...sides].sort((a,b)=>a-b);
+  return o.orient === 'landscape' ? sorted.reverse() : sorted;
+}
+function planLayout(o) {
+  const [W,H] = paperDimensions(o), availableW = W-2*MARGIN, availableH = H-2*MARGIN-58;
+  const maxLen = Math.max(fmt(o.min).length,fmt(o.max).length);
+  const fontMM = MIN_FONT_PT*25.4/72;
+  const minCell = Math.max(7, fontMM*maxLen*.65+2, fontMM/.46);
+  const blockW = o.size*minCell+1, blockH = blockW+6;
+  const cols = o.oversize ? o.blocks : Math.min(o.blocks,Math.max(1,Math.floor((availableW+3)/(blockW+3))));
+  const rows = o.oversize ? o.blocks : Math.min(o.blocks,Math.max(1,Math.floor((availableH+3)/(blockH+3))));
+  const cell = Math.floor(Math.min(((availableW-3*(cols-1))/cols-1)/o.size,((availableH-3*(rows-1))/rows-7)/o.size)*100)/100;
+  const font = Math.min(6.35,cell*.46,(cell-2)/(maxLen*.65));
+  const pt = font*72/25.4;
+  if (!o.oversize && pt+0.001 < MIN_FONT_PT) throw new Error('Even one block is too small on this paper. Choose larger paper or fewer numbers per block.');
+  const tiles=[];
+  for(let r=0;r<o.blocks;r+=rows) for(let c=0;c<o.blocks;c+=cols) tiles.push({r,c,rows:Math.min(rows,o.blocks-r),cols:Math.min(cols,o.blocks-c)});
+  const pageCount = tiles.length*o.count*(o.solutions?2:1);
+  if (pageCount > MAX_PAGES) throw new Error(`This job would contain ${pageCount} pages (limit ${MAX_PAGES}). Reduce the number of puzzles or choose larger paper.`);
+  return {W,H,cell,font,pt,tiles,pageCount,cols,rows};
+}
+
+// Code is bundled locally. No user input is ever evaluated as code.
+self.onmessage = event => {
+  try {
+    const o = parseOptions(event.data);
+    validateGenerator(o);
+    planLayout(o);
+    for (let i = 1; i <= o.count; i++) {
+      const puzzle = generatePuzzle(mulberry32(hashSeed(`${o.seed}-${i}`)),o);
+      self.postMessage({type:'puzzle',index:i,puzzle});
+    }
+    self.postMessage({type:'done'});
+  } catch (error) { self.postMessage({type:'error',message:error.message}); }
+};
+</script>
+<script>'use strict';
+const VERSION = '2.0.0';
+const PAPER = {letter:[215.9,279.4],a4:[210,297],a3:[297,420],a2:[420,594],tabloid:[279.4,431.8]};
+const MARGIN = 12;
+const MIN_FONT_PT = 10;
+const MAX_PAGES = 200;
+const DEFAULTS = {blocks:3,size:3,min:1,max:30,count:1,seed:'',paper:'a4',orient:'portrait',theme:'none',chain:true,solutions:true,finalResult:false,oversize:false,width:420,height:594};
+const fmt = n => n < 0 ? '−'+(-n) : String(n);
+function parseOptions(raw) {
+  const o = {};
+  for (const [key,lo,hi] of [['blocks',2,6],['size',2,6],['min',-1000,1000],['max',-1000,1000],['count',1,50]]) {
+    const text = String(raw[key]).trim(), value = Number(text);
+    if (!text || !Number.isInteger(value) || value < lo || value > hi) throw new Error(`${key}: enter a whole number from ${lo} to ${hi}.`);
+    o[key] = value;
+  }
+  if (o.min > o.max) throw new Error('Smallest number must not exceed largest number.');
+  for (const [key,values] of [['paper',[...Object.keys(PAPER),'custom']],['orient',['portrait','landscape']],['theme',['none','checker','pastel']]]) {
+    if (!values.includes(raw[key])) throw new Error(`Invalid ${key}.`);
+    o[key] = raw[key];
+  }
+  for (const key of ['chain','solutions','finalResult','oversize']) {
+    if (typeof raw[key] !== 'boolean') throw new Error(`Invalid ${key}.`);
+    o[key] = raw[key];
+  }
+  o.seed = String(raw.seed ?? '').trim() || '1';
+  if (o.seed.length > 64 || /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(o.seed)) throw new Error('Seed: use up to 64 printable characters, without control characters.');
+  for (const key of ['width','height']) {
+    const v = Number(raw[key]);
+    if (o.paper === 'custom' && (!String(raw[key]).trim() || !Number.isFinite(v) || v < 200 || v > 1000)) throw new Error('Custom paper sides must be between 200 and 1000 mm.');
+    o[key] = o.paper === 'custom' ? Math.round(v*10)/10 : DEFAULTS[key];
+  }
+  return o;
+}
+function paperDimensions(o) {
+  const sides = o.paper === 'custom' ? [o.width,o.height] : PAPER[o.paper];
+  const sorted = [...sides].sort((a,b)=>a-b);
+  return o.orient === 'landscape' ? sorted.reverse() : sorted;
+}
+function planLayout(o) {
+  const [W,H] = paperDimensions(o), availableW = W-2*MARGIN, availableH = H-2*MARGIN-58;
+  const maxLen = Math.max(fmt(o.min).length,fmt(o.max).length);
+  const fontMM = MIN_FONT_PT*25.4/72;
+  const minCell = Math.max(7, fontMM*maxLen*.65+2, fontMM/.46);
+  const blockW = o.size*minCell+1, blockH = blockW+6;
+  const cols = o.oversize ? o.blocks : Math.min(o.blocks,Math.max(1,Math.floor((availableW+3)/(blockW+3))));
+  const rows = o.oversize ? o.blocks : Math.min(o.blocks,Math.max(1,Math.floor((availableH+3)/(blockH+3))));
+  const cell = Math.floor(Math.min(((availableW-3*(cols-1))/cols-1)/o.size,((availableH-3*(rows-1))/rows-7)/o.size)*100)/100;
+  const font = Math.min(6.35,cell*.46,(cell-2)/(maxLen*.65));
+  const pt = font*72/25.4;
+  if (!o.oversize && pt+0.001 < MIN_FONT_PT) throw new Error('Even one block is too small on this paper. Choose larger paper or fewer numbers per block.');
+  const tiles=[];
+  for(let r=0;r<o.blocks;r+=rows) for(let c=0;c<o.blocks;c+=cols) tiles.push({r,c,rows:Math.min(rows,o.blocks-r),cols:Math.min(cols,o.blocks-c)});
+  const pageCount = tiles.length*o.count*(o.solutions?2:1);
+  if (pageCount > MAX_PAGES) throw new Error(`This job would contain ${pageCount} pages (limit ${MAX_PAGES}). Reduce the number of puzzles or choose larger paper.`);
+  return {W,H,cell,font,pt,tiles,pageCount,cols,rows};
+}
+
+// DOM construction only: no HTML parser, eval, user-created URLs or event attributes.
+const $ = id => document.getElementById(id);
+const state = {revision:0,worker:null,workerURL:null,timer:null,lastOptions:null,readyOptions:null,busy:false};
+const bools = ['chain','solutions','finalResult','oversize'];
+const fields = Object.keys(DEFAULTS);
+const PASTELS = ['#fde2e4','#e2ece9','#dfe7fd','#fff1e6','#e4d9ff'];
+const pause = () => new Promise(resolve => setTimeout(resolve,0));
+function element(tag, className='', text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = String(text);
+  return node;
+}
+function rawOptions() {
+  return Object.fromEntries(fields.map(key => [key,bools.includes(key)?$(key).checked:$(key).value]));
+}
+function applyOptions(o) {
+  for (const key of fields) { if (bools.includes(key)) $(key).checked=o[key]; else $(key).value=o[key]; }
+}
+function stopWorker() {
+  if (state.worker) state.worker.terminate();
+  if (state.workerURL) URL.revokeObjectURL(state.workerURL);
+  clearTimeout(state.timer);
+  state.worker=null; state.workerURL=null; state.timer=null;
+}
+function invalidate(message='Settings changed. Generate new puzzles before printing.') {
+  state.revision++;
+  stopWorker();
+  state.readyOptions=null; state.busy=false;
+  document.body.dataset.ready='false';
+  $('preview').replaceChildren(element('p','empty',message));
+  $('pagesize').textContent='@page{size:auto;margin:12mm}';
+  $('print').disabled=true; $('cancel').disabled=true; $('generate').disabled=false;
+  $('restore').disabled=!state.lastOptions;
+  $('status').textContent=message;
+  $('msg').textContent='';
+}
+function showLayout() {
+  $('customPaper').hidden=$('paper').value!=='custom';
+  $('finalResult').disabled=!$('chain').checked;
+  const override=$('oversize').checked;
+  $('warning').hidden=!override;
+  $('warning').textContent=override ? 'Readability protection is OFF. Tiny text and visual defects are possible. Choose the correct large paper and check print preview.':'';
+  try {
+    const layout=planLayout(parseOptions(rawOptions()));
+    $('layoutInfo').textContent=`${layout.pageCount} sheets total · ${layout.tiles.length} sheet(s) per puzzle · numbers ${layout.pt.toFixed(1)} pt at 100%`;
+  } catch(error) { $('layoutInfo').textContent=error.message; }
+}
+function fail(message) {
+  invalidate('No printable puzzle. Fix the settings or restore the last valid settings.');
+  $('msg').textContent=message;
+}
+function colour(o,bi) {
+  const r=Math.floor(bi/o.blocks),c=bi%o.blocks;
+  return o.theme==='checker' ? ((r+c)%2 ? '#ffffff':'#d7e6f5') : o.theme==='pastel' ? PASTELS[(r+2*c)%PASTELS.length] : '#ffffff';
+}
+function createPage(p,o,layout,tile,part,index,solution,pageNumber) {
+  const page=element('section',solution?'page sol':'page');
+  page.style.width=`${layout.W}mm`; page.style.height=`${layout.H-.5}mm`;
+  const header=element('header');
+  header.append(element('div','title',`${solution?'Solution':'Sum Chain Puzzle'} ${index}`));
+  if (!solution) header.append(element('div','meta','Name: ______________  Date: __________'));
+  page.append(header,element('div','subtitle',`Rows ${tile.r+1}–${tile.r+tile.rows} / ${o.blocks} · Columns ${tile.c+1}–${tile.c+tile.cols} / ${o.blocks} · Part ${part+1} / ${layout.tiles.length}`));
+  const rules=element('div','rules');
+  if(o.chain&&!solution){const start=element('div','startbox');start.append(element('small','','Start'),element('span','',fmt(p.start)));rules.append(start);}
+  const text=solution ? 'Outlined cells add up to the black cell. Each equation uses three different cells.' : 'Find two numbers that add up to a third number in the same block. Use three different cells: a cell cannot be used twice.';
+  rules.append(element('p','',text+(o.chain?' Follow block numbers 1, 2, 3, …, even across sheets. Each result starts the next block.':'')));
+  page.append(rules);
+  const grid=element('div','grid');
+  grid.style.gridTemplateColumns=`repeat(${tile.cols},auto)`;
+  for(let r=tile.r;r<tile.r+tile.rows;r++) for(let c=tile.c;c<tile.c+tile.cols;c++) {
+    const bi=r*o.blocks+c,b=p.blocks[bi],block=element('div','block');
+    block.style.backgroundColor=colour(o,bi);
+    const label=solution?`Block ${bi+1} · ${fmt(b.s)} + ${fmt(b.x)} = ${fmt(b.c)}`:`Block ${bi+1}`;
+    block.append(element('div','block-label',label));
+    const cells=element('div','cells');
+    cells.style.gridTemplateColumns=`repeat(${o.size},${layout.cell}mm)`;
+    cells.style.gridAutoRows=`${layout.cell}mm`;
+    cells.style.fontSize=`${layout.font.toFixed(3)}mm`;
+    b.cells.forEach((v,i)=>{
+      let cls='cell';
+      if(solution) cls+=i===b.tri.c?' result':i===b.tri.s||i===b.tri.x?' addend':'';
+      cells.append(element('div',cls,fmt(v)));
+    });
+    block.append(cells);grid.append(block);
+  }
+  page.append(grid);
+  const footer=element('footer');
+  const note=element('div','footnote',`v${VERSION} · Seed: ${o.seed} · Puzzle ${index} · ${fmt(o.min)} to ${fmt(o.max)} · Page ${pageNumber}/${layout.pageCount}`);
+  if(o.oversize) note.append(element('div','print-warning','Readability override enabled — check size and layout.'));
+  footer.append(note);
+  if(o.chain&&o.finalResult) footer.append(element('div','end-result',`Final result: ${fmt(p.end)}`));
+  page.append(footer);
+  return page;
+}
+function fitPreview(width) {
+  const available=$('preview').parentElement.clientWidth-48;
+  $('preview').style.zoom=String(Math.max(.1,Math.min(1,available/(width*96/25.4))));
+}
+async function renderPuzzles(puzzles,o,revision) {
+  const layout=planLayout(o);
+  $('preview').replaceChildren();
+  $('pagesize').textContent=`@page{size:${layout.W}mm ${layout.H}mm;margin:0}`;
+  fitPreview(layout.W);
+  let pageNumber=0;
+  for(const solution of o.solutions?[false,true]:[false]) for(let i=0;i<puzzles.length;i++) for(let t=0;t<layout.tiles.length;t++) {
+    if(revision!==state.revision) return;
+    $('preview').append(createPage(puzzles[i],o,layout,layout.tiles[t],t,i+1,solution,++pageNumber));
+    $('status').textContent=`Preparing sheet ${pageNumber} of ${layout.pageCount}…`;
+    // Yield between pages; generation itself runs entirely in a Web Worker.
+    await pause();
+  }
+  if(revision!==state.revision) return;
+  state.readyOptions=o; state.lastOptions={...o}; state.busy=false;
+  document.body.dataset.ready='true';
+  $('print').disabled=false; $('cancel').disabled=true; $('generate').disabled=false; $('restore').disabled=false;
+  $('status').textContent=`Ready: ${layout.pageCount} sheet(s). Numbers ${layout.pt.toFixed(1)} pt at 100%.`;
+}
+function generate() {
+  invalidate('Generating…');
+  const revision=state.revision;
+  let o;
+  try {o=parseOptions(rawOptions());planLayout(o);} catch(error){fail(error.message);return;}
+  state.busy=true; $('generate').disabled=true; $('cancel').disabled=false;
+  const puzzles=[];
+  try {
+    state.workerURL=URL.createObjectURL(new Blob([$('workerSource').textContent],{type:'text/javascript'}));
+    const worker=new Worker(state.workerURL);state.worker=worker;
+    const watch=()=>{clearTimeout(state.timer);state.timer=setTimeout(()=>{if(revision===state.revision)fail('Search timed out. Widen the number range or use smaller blocks.');},15000);};
+    watch();
+    worker.onerror=()=>{if(revision===state.revision)fail('The background generator could not run. Open the extracted HTML file in a current Edge, Chrome or Firefox browser.');};
+    worker.onmessage=event=>{
+      if(revision!==state.revision)return;
+      const data=event.data;
+      if(data.type==='error'){fail(data.message);return;}
+      if(data.type==='puzzle') {puzzles.push(data.puzzle);$('status').textContent=`Generated puzzle ${data.index} of ${o.count}…`;watch();}
+      if(data.type==='done') {stopWorker();renderPuzzles(puzzles,o,revision).catch(error=>{if(revision===state.revision)fail(error.message);});}
+    };
+    worker.postMessage(o);
+  }catch(error){fail(`Cannot start background generation: ${error.message}`);}
+}
+function canPrint() {
+  try {return state.readyOptions!==null&&!state.busy&&JSON.stringify(parseOptions(rawOptions()))===JSON.stringify(state.readyOptions);}catch{return false;}
+}
+function guardPrint() {
+  if(!canPrint()){invalidate('Nothing ready to print. Generate puzzles using the current settings.');return false;}
+  return true;
+}
+for(const key of fields) $(key).addEventListener('input',()=>{invalidate();showLayout();});
+$('generate').addEventListener('click',generate);
+$('cancel').addEventListener('click',()=>invalidate('Cancelled. Adjust the settings or generate again.'));
+$('restore').addEventListener('click',()=>{if(state.lastOptions){applyOptions(state.lastOptions);showLayout();generate();}});
+$('reseed').addEventListener('click',()=>{$('seed').value=Math.random().toString(36).slice(2,10);invalidate();showLayout();});
+$('print').addEventListener('click',()=>{if(guardPrint())window.print();});
+window.addEventListener('beforeprint',guardPrint);
+window.addEventListener('resize',()=>{try{fitPreview(paperDimensions(parseOptions(rawOptions()))[0]);}catch{}});
+$('seed').value=Math.random().toString(36).slice(2,10);
+showLayout();generate();
+</script>
+</body>
+</html>
